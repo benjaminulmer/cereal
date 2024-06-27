@@ -33,6 +33,7 @@
 #include <iostream>
 #include <cstdint>
 #include <functional>
+#include <variant>
 
 #include "cereal/macros.hpp"
 #include "cereal/specialize.hpp"
@@ -302,6 +303,13 @@ namespace cereal
       // for detecting inheritance from enable_shared_from_this
       template <class T> inline
       static auto shared_from_this(T & t) -> decltype(t.shared_from_this());
+
+      // for placement new
+      template <class T, class... Ts, class ... Args> inline
+      static void construct( std::variant<T, Ts...> *& ptr, Args && ... args )
+      {
+        new (ptr) std::variant<T, Ts...>( T(std::forward<Args>( args )...) );
+      }
 
       // for placement new
       template <class T, class ... Args> inline

@@ -76,11 +76,23 @@ namespace cereal
   CEREAL_LOAD_FUNCTION_NAME( Archive & ar, std::vector<T, A> & vector )
   {
     size_type size;
-    ar( make_size_tag( size ) );
+    ar(make_size_tag(size));
 
-    vector.resize( static_cast<std::size_t>( size ) );
-    for(auto && v : vector)
-      ar( v );
+    // Create enough space for the T
+    alignas(T) std::byte local[sizeof(T)];
+    // Laundering is needed to avoid UB
+    T *tPtr = std::launder(reinterpret_cast<T *>(&local));
+    // This function has access to the private default ctor and will fill tPtr with a T
+    access::construct(tPtr);
+
+    vector.clear();
+    vector.reserve(static_cast<std::size_t>(size));
+    for (size_type i = 0; i < size; i++) {
+        vector.push_back(*tPtr);
+        ar(vector[i]);
+    }
+
+    tPtr->~T();
   }
 
   //! Serialization for bool vector types
