@@ -67,8 +67,16 @@ namespace cereal
     {
       if(N == target)
       {
-        variant.template emplace<N>();
+        using T = std::variant_alternative<N, Variant>::type;
+        // Create enough space for the T
+        alignas(T) std::byte local[sizeof(T)];
+        // Laundering is needed to avoid UB
+        T *tPtr = std::launder(reinterpret_cast<T *>(&local));
+        // This function has access to the private default ctor and will fill tPtr with a T
+        access::construct(tPtr);
+        variant.template emplace<N>(std::move(*tPtr));
         ar( CEREAL_NVP_("data", std::get<N>(variant)) );
+        tPtr->~T();
       }
       else
         load_variant<N+1>(ar, target, variant);
